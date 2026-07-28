@@ -53,10 +53,13 @@ Then visit http://localhost:8000.
 
 - **Repeat avoidance:** the API has no "exclude" parameter, so the app keeps
   a rolling list of the last 10 memes shown (in `sessionStorage`, so it
-  survives a page refresh but clears when the tab closes). On each click it
-  fetches a meme and, if it matches something in that recent list, quietly
-  re-fetches (up to 8 attempts) until it finds one that isn't a repeat, or
-  gives up and shows the last one it got.
+  survives a page refresh but clears when the tab closes). A meme counts as
+  a repeat if either its post link/URL or its (case-insensitive) title
+  matches something in that recent list — the title check catches the same
+  image reposted under a different filename. On each click the app fetches
+  a meme and, if it's a repeat, quietly re-fetches (up to 8 attempts) until
+  it finds one that isn't, or gives up and shows the last one it got. Fetches
+  also bypass caching, so you don't get served an identical stale response.
 
 ## Deploying
 

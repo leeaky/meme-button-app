@@ -12,6 +12,10 @@ const HISTORY_LIMIT = 10;
 const MAX_FETCH_ATTEMPTS = 8;
 const HISTORY_KEY = "meme-button-history";
 
+function normalizeTitle(str) {
+  return (str || "").trim().toLowerCase();
+}
+
 function getHistory() {
   try {
     return JSON.parse(sessionStorage.getItem(HISTORY_KEY)) || [];
@@ -20,9 +24,17 @@ function getHistory() {
   }
 }
 
-function rememberMeme(id) {
+function wasRecentlyShown(meme, history) {
+  const id = meme.postLink || meme.url;
+  const normTitle = normalizeTitle(meme.title);
+  return history.some(
+    (entry) => entry.id === id || (normTitle && entry.title === normTitle)
+  );
+}
+
+function rememberMeme(meme) {
   const history = getHistory();
-  history.push(id);
+  history.push({ id: meme.postLink || meme.url, title: normalizeTitle(meme.title) });
   while (history.length > HISTORY_LIMIT) {
     history.shift();
   }
@@ -50,8 +62,7 @@ async function fetchMeme() {
     let meme;
     for (let attempt = 0; attempt < MAX_FETCH_ATTEMPTS; attempt++) {
       meme = await fetchOneMeme();
-      const id = meme.postLink || meme.url;
-      if (!history.includes(id)) {
+      if (!wasRecentlyShown(meme, history)) {
         break;
       }
     }
@@ -60,7 +71,7 @@ async function fetchMeme() {
     image.hidden = false;
     title.textContent = meme.title;
     credit.textContent = `r/${meme.subreddit} · posted by u/${meme.author}`;
-    rememberMeme(meme.postLink || meme.url);
+    rememberMeme(meme);
   } catch (error) {
     console.error("Failed to fetch meme:", error);
     errorMessage.textContent = "Couldn't load a meme right now. Try again.";
