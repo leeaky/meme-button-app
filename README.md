@@ -33,8 +33,12 @@ blocked by CORS on the `file://` protocol).
 - `meme-dedupe.js` — pure, DOM-free repeat-avoidance logic (see below),
   imported by `script.js` and covered by the tests in `tests/`.
 - `script.js` — on click (and once on load), fetches a random meme from the
-  public [meme-api.com](https://meme-api.com) endpoint (`GET /gimme`), which
-  returns JSON like:
+  public [meme-api.com](https://meme-api.com) endpoint. Rather than the bare
+  `GET /gimme` (which draws from a small fixed set of subreddits), it hits
+  `GET /gimme/<sub1>+<sub2>+...` across a wider list of ten meme subreddits
+  to draw from a bigger pool and further cut down on repeats — falling back
+  to plain `/gimme` if that request fails for any reason. Either way, the
+  response is JSON like:
 
   ```json
   {

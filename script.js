@@ -6,7 +6,23 @@ const title = document.getElementById("meme-title");
 const credit = document.getElementById("meme-credit");
 const errorMessage = document.getElementById("error-message");
 
-const MEME_API_URL = "https://meme-api.com/gimme";
+const MEME_API_BASE = "https://meme-api.com/gimme";
+// meme-api.com's default pool is a small fixed set of subreddits; widening
+// it to a bigger, explicit list gives more distinct memes to draw from and
+// makes repeats less likely.
+const MEME_SUBREDDITS = [
+  "memes",
+  "dankmemes",
+  "wholesomememes",
+  "me_irl",
+  "ProgrammerHumor",
+  "funny",
+  "AdviceAnimals",
+  "comedyheaven",
+  "terriblefacebookmemes",
+  "MemeEconomy",
+];
+const MEME_API_URL = `${MEME_API_BASE}/${MEME_SUBREDDITS.join("+")}`;
 
 // How many of the most recently shown memes to avoid repeating.
 const HISTORY_LIMIT = 10;
@@ -31,15 +47,26 @@ function rememberMeme(meme) {
   sessionStorage.setItem(HISTORY_KEY, JSON.stringify(history));
 }
 
-async function fetchOneMeme() {
+async function fetchJson(url) {
   // Bust caching (browser and any intermediate proxy/CDN) so we don't get
   // served the exact same response for an identical GET URL.
-  const url = `${MEME_API_URL}?_=${Date.now()}-${Math.random()}`;
-  const response = await fetch(url, { cache: "no-store" });
+  const bustedUrl = `${url}?_=${Date.now()}-${Math.random()}`;
+  const response = await fetch(bustedUrl, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Request failed with status ${response.status}`);
   }
   return response.json();
+}
+
+async function fetchOneMeme() {
+  try {
+    return await fetchJson(MEME_API_URL);
+  } catch (error) {
+    // Fall back to the API's own default pool in case the multi-subreddit
+    // path above isn't supported.
+    console.warn("Widened subreddit fetch failed, falling back to default pool:", error);
+    return fetchJson(MEME_API_BASE);
+  }
 }
 
 async function fetchMeme() {
