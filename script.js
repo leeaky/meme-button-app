@@ -30,7 +30,10 @@ function rememberMeme(id) {
 }
 
 async function fetchOneMeme() {
-  const response = await fetch(MEME_API_URL);
+  // Bust caching (browser and any intermediate proxy/CDN) so we don't get
+  // served the exact same response for an identical GET URL.
+  const url = `${MEME_API_URL}?_=${Date.now()}-${Math.random()}`;
+  const response = await fetch(url, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Request failed with status ${response.status}`);
   }
