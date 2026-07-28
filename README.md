@@ -51,6 +51,13 @@ Then visit http://localhost:8000.
   button is disabled and shows "Loading...". If the request fails, an error
   message is shown instead and the button re-enables so you can retry.
 
+- **Repeat avoidance:** the API has no "exclude" parameter, so the app keeps
+  a rolling list of the last 10 memes shown (in `sessionStorage`, so it
+  survives a page refresh but clears when the tab closes). On each click it
+  fetches a meme and, if it matches something in that recent list, quietly
+  re-fetches (up to 8 attempts) until it finds one that isn't a repeat, or
+  gives up and shows the last one it got.
+
 ## Deploying
 
 This is a static site, so any static host works (GitHub Pages, Netlify,
