@@ -1,9 +1,4 @@
-import {
-  toHistoryEntry,
-  pickFreshMeme,
-  HISTORY_LIMIT,
-  MAX_FETCH_ATTEMPTS,
-} from "./meme-dedupe.js";
+import { dedupeMemes, shuffle, toHistoryEntry, HISTORY_LIMIT } from "./meme-dedupe.js";
 
 const button = document.getElementById("meme-button");
 const image = document.getElementById("meme-image");
@@ -12,9 +7,9 @@ const credit = document.getElementById("meme-credit");
 const errorMessage = document.getElementById("error-message");
 
 const MEME_API_BASE = "https://meme-api.com/gimme";
-// meme-api.com's default pool is a small fixed set of subreddits; widening
-// it to a bigger, explicit list gives more distinct memes to draw from and
-// makes repeats less likely.
+// meme-api.com's default pool is just 'memes', 'dankmemes' and 'me_irl'.
+// Pulling a batch from each of a wider set of subreddits (the API's
+// documented max per request) gives a much bigger local pool to draw from.
 const MEME_SUBREDDITS = [
   "memes",
   "dankmemes",
@@ -27,9 +22,15 @@ const MEME_SUBREDDITS = [
   "terriblefacebookmemes",
   "MemeEconomy",
 ];
-const MEME_API_URL = `${MEME_API_BASE}/${MEME_SUBREDDITS.join("+")}`;
-
+const BATCH_SIZE_PER_SUBREDDIT = 50; // meme-api.com's documented max per request
 const HISTORY_KEY = "meme-button-history";
+
+// The current batch of memes, in a fixed (shuffled once) serve order, plus
+// how far through it we are. Serving sequentially - rather than asking the
+// API for one random meme at a time - means no repeats until this whole
+// batch is exhausted, rather than hoping a random pick avoids a collision.
+let pool = [];
+let poolIndex = 0;
 
 function getHistory() {
   try {
@@ -59,15 +60,28 @@ async function fetchJson(url) {
   return response.json();
 }
 
-async function fetchOneMeme() {
-  try {
-    return await fetchJson(MEME_API_URL);
-  } catch (error) {
-    // Fall back to the API's own default pool in case the multi-subreddit
-    // path above isn't supported.
-    console.warn("Widened subreddit fetch failed, falling back to default pool:", error);
-    return fetchJson(MEME_API_BASE);
+async function fetchSubredditBatch(subreddit) {
+  const data = await fetchJson(`${MEME_API_BASE}/${subreddit}/${BATCH_SIZE_PER_SUBREDDIT}`);
+  return Array.isArray(data.memes) ? data.memes : [];
+}
+
+async function refillPool() {
+  const results = await Promise.allSettled(MEME_SUBREDDITS.map(fetchSubredditBatch));
+  const lists = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
+
+  let deduped = dedupeMemes(lists, getHistory());
+
+  if (deduped.length === 0) {
+    // Last resort: a single random meme from the API's own default pool.
+    const fallback = await fetchJson(MEME_API_BASE);
+    deduped = [fallback];
   }
+
+  pool = shuffle(deduped);
+  poolIndex = 0;
+  console.info(
+    `Loaded a fresh batch of ${pool.length} memes across ${MEME_SUBREDDITS.length} subreddits.`
+  );
 }
 
 async function fetchMeme() {
@@ -76,8 +90,12 @@ async function fetchMeme() {
   errorMessage.hidden = true;
 
   try {
-    const history = getHistory();
-    const { meme } = await pickFreshMeme(fetchOneMeme, history, MAX_FETCH_ATTEMPTS);
+    if (poolIndex >= pool.length) {
+      await refillPool();
+    }
+
+    const meme = pool[poolIndex];
+    poolIndex += 1;
 
     image.src = meme.url;
     image.hidden = false;

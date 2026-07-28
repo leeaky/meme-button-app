@@ -30,15 +30,26 @@ blocked by CORS on the `file://` protocol).
 
 - `index.html` — page structure: a button, an image, a title, and a credit line.
 - `style.css` — layout and theming (light/dark via `prefers-color-scheme`).
-- `meme-dedupe.js` — pure, DOM-free repeat-avoidance logic (see below),
-  imported by `script.js` and covered by the tests in `tests/`.
-- `script.js` — on click (and once on load), fetches a random meme from the
-  public [meme-api.com](https://meme-api.com) endpoint. Rather than the bare
-  `GET /gimme` (which draws from a small fixed set of subreddits), it hits
-  `GET /gimme/<sub1>+<sub2>+...` across a wider list of ten meme subreddits
-  to draw from a bigger pool and further cut down on repeats — falling back
-  to plain `/gimme` if that request fails for any reason. Either way, the
-  response is JSON like:
+- `meme-dedupe.js` — pure, DOM-free pool/dedup logic (see below), imported
+  by `script.js` and covered by the tests in `tests/`.
+- `script.js` — pulls memes from the public [meme-api.com](https://meme-api.com)
+  API and serves them one at a time from a local pool:
+
+  1. On first click (and whenever the pool runs out), it fetches a batch of
+     up to 50 memes from each of 10 subreddits in parallel, via meme-api.com's
+     documented `GET /gimme/{subreddit}/{count}` endpoint (50 is its max per
+     request) — up to ~500 memes total.
+  2. The batches are combined and deduped (dropping anything that's the same
+     post, or has the same title, as something already in the batch or
+     already shown this session), then shuffled once.
+  3. Each click serves the next meme from that shuffled pool, in sequence —
+     rather than asking the API for one random meme per click, which risks
+     landing on something already shown. A batch of ~500 only needs
+     refilling roughly every 500 clicks.
+  4. If every subreddit fetch fails, it falls back to the API's own default
+     `/gimme` (single random meme, no dedup) as a last resort.
+
+  Either way, a meme object looks like:
 
   ```json
   {
@@ -51,32 +62,23 @@ blocked by CORS on the `file://` protocol).
 
   The app renders `url` as the image, `title` as the caption, and
   `subreddit`/`author` as the credit line. While a request is in flight the
-  button is disabled and shows "Loading...". If the request fails, an error
+  button is disabled and shows "Loading...". If everything fails, an error
   message is shown instead and the button re-enables so you can retry.
-
-- **Repeat avoidance:** the API has no "exclude" parameter, so the app keeps
-  a rolling list of the last 50 memes shown (in `sessionStorage`, so it
-  survives a page refresh but clears when the tab closes). A meme counts as
-  a repeat if either its post link/URL or its (case-insensitive) title
-  matches something in that recent list — the title check catches the same
-  image reposted under a different filename. On each click the app fetches
-  a meme and, if it's a repeat, quietly re-fetches (up to 20 attempts) until
-  it finds one that isn't, or gives up and shows the last one it got. Fetches
-  also bypass caching, so you don't get served an identical stale response.
+  Open the browser console to see how many memes actually landed in each
+  batch (`Loaded a fresh batch of N memes across 10 subreddits`).
 
 ## Tests
 
-The repeat-avoidance logic (`meme-dedupe.js`) is covered by tests using
-Node's built-in test runner — no dependencies to install:
+The pool/dedup logic (`meme-dedupe.js`) is covered by tests using Node's
+built-in test runner — no dependencies to install:
 
 ```sh
 npm test
 ```
 
-This checks title/id matching, that a repeat triggers a retry, that it
-gives up gracefully after the retry-attempt limit if the API keeps returning
-memes already seen, and that a run of consecutive picks from a large-enough
-pool never repeat.
+This checks title/id matching, that deduping across subreddit batches (and
+against what's already been shown) works, and that the shuffle is a correct,
+non-mutating permutation.
 
 ## Deploying
 

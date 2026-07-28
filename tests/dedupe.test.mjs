@@ -4,20 +4,13 @@ import {
   normalizeTitle,
   wasRecentlyShown,
   toHistoryEntry,
-  pickFreshMeme,
+  dedupeMemes,
+  shuffle,
   HISTORY_LIMIT,
-  MAX_FETCH_ATTEMPTS,
 } from "../meme-dedupe.js";
 
 function meme(id, title, subreddit = "memes") {
   return { postLink: id, url: `https://i.redd.it/${id}.jpg`, title, subreddit, author: "someone" };
-}
-
-// A fetcher that returns memes from a fixed pool, one per call, wrapping
-// around if it's called more times than the pool has entries.
-function poolFetcher(pool) {
-  let i = 0;
-  return async () => pool[i++ % pool.length];
 }
 
 test("normalizeTitle trims and lowercases", () => {
@@ -43,48 +36,70 @@ test("wasRecentlyShown returns false for a genuinely new meme", () => {
   assert.equal(wasRecentlyShown(meme("post-2", "Dog meme"), history), false);
 });
 
-test("pickFreshMeme skips repeats and returns the first fresh meme within maxAttempts", async () => {
-  const history = [toHistoryEntry(meme("dup-1", "Repeat one")), toHistoryEntry(meme("dup-2", "Repeat two"))];
-  const pool = [meme("dup-1", "Repeat one"), meme("dup-2", "Repeat two"), meme("fresh-1", "New meme")];
-  const fetchOne = poolFetcher(pool);
+test("dedupeMemes drops the same meme cross-posted to more than one subreddit batch", () => {
+  const listA = [meme("post-1", "Cat meme", "memes"), meme("post-2", "Dog meme", "memes")];
+  const listB = [meme("post-1", "Cat meme", "dankmemes"), meme("post-3", "Bird meme", "dankmemes")];
 
-  const { meme: result, attempts } = await pickFreshMeme(fetchOne, history, MAX_FETCH_ATTEMPTS);
+  const result = dedupeMemes([listA, listB]);
 
-  assert.equal(result.postLink, "fresh-1");
-  assert.equal(attempts, 3); // two repeats, then the fresh one
+  assert.deepEqual(
+    result.map((m) => m.postLink),
+    ["post-1", "post-2", "post-3"]
+  );
 });
 
-test(`pickFreshMeme gives up after maxAttempts (n=${MAX_FETCH_ATTEMPTS}) if the pool never yields a fresh meme`, async () => {
-  const history = [toHistoryEntry(meme("only-1", "The only meme")), toHistoryEntry(meme("only-2", "Another repeat"))];
-  const pool = [meme("only-1", "The only meme"), meme("only-2", "Another repeat")];
-  const fetchOne = poolFetcher(pool);
+test("dedupeMemes drops reposts with a matching title across batches, even with a different id", () => {
+  const listA = [meme("post-1", "Same joke")];
+  const listB = [meme("post-2", "  same joke  ")]; // repost, different post/id
 
-  const { meme: result, attempts } = await pickFreshMeme(fetchOne, history, MAX_FETCH_ATTEMPTS);
+  const result = dedupeMemes([listA, listB]);
 
-  assert.equal(attempts, MAX_FETCH_ATTEMPTS); // exhausted every attempt, never found a fresh one
-  assert.ok(result.postLink === "only-1" || result.postLink === "only-2");
+  assert.equal(result.length, 1);
+  assert.equal(result[0].postLink, "post-1");
 });
 
-test(`${MAX_FETCH_ATTEMPTS} consecutive picks from a large-enough pool never repeat a meme`, async () => {
-  // Each click's fetcher restarts from the top of the pool (worst case: the
-  // first `click` entries are always repeats), so the pool just needs to be
-  // bigger than the number of clicks, and the last click needs exactly
-  // MAX_FETCH_ATTEMPTS tries - this checks that budget is actually enough.
-  const poolSize = MAX_FETCH_ATTEMPTS + 10;
-  const pool = Array.from({ length: poolSize }, (_, i) => meme(`post-${i}`, `Meme number ${i}`));
-  let history = [];
-  const shown = [];
+test("dedupeMemes excludes anything already in seenHistory", () => {
+  const seenHistory = [toHistoryEntry(meme("post-1", "Cat meme"))];
+  const batch = [meme("post-1", "Cat meme"), meme("post-2", "Dog meme")];
 
-  for (let click = 0; click < MAX_FETCH_ATTEMPTS; click++) {
-    const fetchOne = poolFetcher(pool);
-    const { meme: result } = await pickFreshMeme(fetchOne, history, MAX_FETCH_ATTEMPTS);
-    shown.push(result.postLink);
-    history.push(toHistoryEntry(result));
+  const result = dedupeMemes([batch], seenHistory);
+
+  assert.deepEqual(
+    result.map((m) => m.postLink),
+    ["post-2"]
+  );
+});
+
+test(`HISTORY_LIMIT is big enough to cover a full 10-subreddit x 50 batch`, () => {
+  assert.ok(HISTORY_LIMIT >= 500, `expected HISTORY_LIMIT >= 500, got ${HISTORY_LIMIT}`);
+});
+
+test("shuffle returns a permutation of the input without mutating it", () => {
+  const original = [1, 2, 3, 4, 5];
+  const copy = [...original];
+
+  const result = shuffle(original);
+
+  assert.deepEqual(original, copy, "input array must not be mutated");
+  assert.deepEqual([...result].sort(), [...original].sort());
+});
+
+test("shuffle actually reorders using the Fisher-Yates algorithm (deterministic randomFn)", () => {
+  const input = [1, 2, 3, 4, 5];
+  // Fixed sequence of "random" values, one consumed per swap.
+  const values = [0.9, 0.1, 0.5, 0.0];
+  let i = 0;
+  const fakeRandom = () => values[i++];
+
+  const result = shuffle(input, fakeRandom);
+
+  // Manually replay the same Fisher-Yates steps to compute the expected result.
+  const expected = [...input];
+  let vi = 0;
+  for (let idx = expected.length - 1; idx > 0; idx--) {
+    const j = Math.floor(values[vi++] * (idx + 1));
+    [expected[idx], expected[j]] = [expected[j], expected[idx]];
   }
 
-  assert.equal(
-    new Set(shown).size,
-    MAX_FETCH_ATTEMPTS,
-    `expected ${MAX_FETCH_ATTEMPTS} unique memes, got repeats: ${shown.join(", ")}`
-  );
+  assert.deepEqual(result, expected);
 });

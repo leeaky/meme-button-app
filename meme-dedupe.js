@@ -1,7 +1,6 @@
-// How many of the most recently shown memes to avoid repeating.
-export const HISTORY_LIMIT = 50;
-// How many times to retry if we keep landing on recently-shown memes.
-export const MAX_FETCH_ATTEMPTS = 20;
+// How many recently shown memes to remember, so a fresh batch doesn't
+// immediately repeat what a previous batch already showed.
+export const HISTORY_LIMIT = 500;
 
 export function normalizeTitle(str) {
   return (str || "").trim().toLowerCase();
@@ -19,18 +18,29 @@ export function wasRecentlyShown(meme, history) {
   );
 }
 
-// Calls fetchOne() up to maxAttempts times, stopping as soon as it gets a
-// meme that isn't in `history`. If every attempt is a repeat, returns the
-// last one fetched rather than retrying forever.
-export async function pickFreshMeme(fetchOne, history, maxAttempts) {
-  let meme;
-  let attempts = 0;
-  while (attempts < maxAttempts) {
-    meme = await fetchOne();
-    attempts += 1;
-    if (!wasRecentlyShown(meme, history)) {
-      break;
+// Combines several subreddit batches into one deduped pool: drops anything
+// that's a repeat of something earlier in the same batch (the same meme
+// cross-posted to more than one of our subreddits) or of `seenHistory`
+// (memes already shown in a previous batch this session).
+export function dedupeMemes(memeLists, seenHistory = []) {
+  const seen = seenHistory.slice();
+  const result = [];
+  for (const meme of memeLists.flat()) {
+    if (!wasRecentlyShown(meme, seen)) {
+      result.push(meme);
+      seen.push(toHistoryEntry(meme));
     }
   }
-  return { meme, attempts };
+  return result;
+}
+
+// Fisher-Yates shuffle. Takes a randomFn (defaulting to Math.random) so
+// behavior is deterministic and testable; never mutates the input array.
+export function shuffle(array, randomFn = Math.random) {
+  const arr = array.slice();
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(randomFn() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
