@@ -1,4 +1,9 @@
-import { toHistoryEntry, pickFreshMeme } from "./meme-dedupe.js";
+import {
+  toHistoryEntry,
+  pickFreshMeme,
+  HISTORY_LIMIT,
+  MAX_FETCH_ATTEMPTS,
+} from "./meme-dedupe.js";
 
 const button = document.getElementById("meme-button");
 const image = document.getElementById("meme-image");
@@ -24,10 +29,6 @@ const MEME_SUBREDDITS = [
 ];
 const MEME_API_URL = `${MEME_API_BASE}/${MEME_SUBREDDITS.join("+")}`;
 
-// How many of the most recently shown memes to avoid repeating.
-const HISTORY_LIMIT = 10;
-// How many times to retry if we keep landing on recently-shown memes.
-const MAX_FETCH_ATTEMPTS = 8;
 const HISTORY_KEY = "meme-button-history";
 
 function getHistory() {

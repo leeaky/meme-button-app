@@ -1,3 +1,8 @@
+// How many of the most recently shown memes to avoid repeating.
+export const HISTORY_LIMIT = 50;
+// How many times to retry if we keep landing on recently-shown memes.
+export const MAX_FETCH_ATTEMPTS = 20;
+
 export function normalizeTitle(str) {
   return (str || "").trim().toLowerCase();
 }
