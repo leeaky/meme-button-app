@@ -1,3 +1,5 @@
+import { toHistoryEntry, pickFreshMeme } from "./meme-dedupe.js";
+
 const button = document.getElementById("meme-button");
 const image = document.getElementById("meme-image");
 const title = document.getElementById("meme-title");
@@ -12,10 +14,6 @@ const HISTORY_LIMIT = 10;
 const MAX_FETCH_ATTEMPTS = 8;
 const HISTORY_KEY = "meme-button-history";
 
-function normalizeTitle(str) {
-  return (str || "").trim().toLowerCase();
-}
-
 function getHistory() {
   try {
     return JSON.parse(sessionStorage.getItem(HISTORY_KEY)) || [];
@@ -24,17 +22,9 @@ function getHistory() {
   }
 }
 
-function wasRecentlyShown(meme, history) {
-  const id = meme.postLink || meme.url;
-  const normTitle = normalizeTitle(meme.title);
-  return history.some(
-    (entry) => entry.id === id || (normTitle && entry.title === normTitle)
-  );
-}
-
 function rememberMeme(meme) {
   const history = getHistory();
-  history.push({ id: meme.postLink || meme.url, title: normalizeTitle(meme.title) });
+  history.push(toHistoryEntry(meme));
   while (history.length > HISTORY_LIMIT) {
     history.shift();
   }
@@ -59,13 +49,7 @@ async function fetchMeme() {
 
   try {
     const history = getHistory();
-    let meme;
-    for (let attempt = 0; attempt < MAX_FETCH_ATTEMPTS; attempt++) {
-      meme = await fetchOneMeme();
-      if (!wasRecentlyShown(meme, history)) {
-        break;
-      }
-    }
+    const { meme } = await pickFreshMeme(fetchOneMeme, history, MAX_FETCH_ATTEMPTS);
 
     image.src = meme.url;
     image.hidden = false;

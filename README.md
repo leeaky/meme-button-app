@@ -13,26 +13,25 @@ step, no dependencies, no backend — just static HTML/CSS/JS.
 
 ## Run it locally
 
-Clone the repo, then either open the file directly or serve it:
+Clone the repo, then serve it:
 
 ```sh
 git clone https://github.com/leeaky/meme-button-app.git
 cd meme-button-app
-```
-
-**Option A — just open it:**
-Double-click `index.html`, or open it in your browser directly.
-
-**Option B — serve it (recommended, avoids any local file/CORS quirks):**
-```sh
 python3 -m http.server 8000
 ```
-Then visit http://localhost:8000.
+
+Then visit http://localhost:8000. `script.js` is loaded as an ES module, so
+it needs to come from an actual `http://` origin — opening `index.html`
+directly via `file://` will fail in most browsers (module scripts are
+blocked by CORS on the `file://` protocol).
 
 ## How it works
 
 - `index.html` — page structure: a button, an image, a title, and a credit line.
 - `style.css` — layout and theming (light/dark via `prefers-color-scheme`).
+- `meme-dedupe.js` — pure, DOM-free repeat-avoidance logic (see below),
+  imported by `script.js` and covered by the tests in `tests/`.
 - `script.js` — on click (and once on load), fetches a random meme from the
   public [meme-api.com](https://meme-api.com) endpoint (`GET /gimme`), which
   returns JSON like:
@@ -60,6 +59,20 @@ Then visit http://localhost:8000.
   a meme and, if it's a repeat, quietly re-fetches (up to 8 attempts) until
   it finds one that isn't, or gives up and shows the last one it got. Fetches
   also bypass caching, so you don't get served an identical stale response.
+
+## Tests
+
+The repeat-avoidance logic (`meme-dedupe.js`) is covered by tests using
+Node's built-in test runner — no dependencies to install:
+
+```sh
+npm test
+```
+
+This checks title/id matching, that a repeat triggers a retry, that it
+gives up gracefully after the 8-attempt limit if the API keeps returning
+memes already seen, and that 8 consecutive picks from a large-enough pool
+never repeat.
 
 ## Deploying
 
