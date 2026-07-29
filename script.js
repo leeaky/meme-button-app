@@ -19,26 +19,78 @@ const MEME_API_BASE = "https://meme-api.com/gimme";
 // Pulling a batch from each of a wider set of subreddits (the API's
 // documented max per request) gives a much bigger local pool to draw from.
 const MEME_SUBREDDITS = [
+  // General meme communities
   "memes",
   "dankmemes",
-  "wholesomememes",
-  "me_irl",
-  "ProgrammerHumor",
   "funny",
+  "meme",
+  "Funnymemes",
   "AdviceAnimals",
-  "comedyheaven",
+  "aww",
+  "MadeMeSmile",
+  "meirl",
+  // Wholesome
+  "wholesomememes",
+  "Eyebleach",
+  // Relatable
+  "me_irl",
+  "BlackPeopleTwitter",
+  "WhitePeopleTwitter",
+  "2meirl4meirl",
   "terriblefacebookmemes",
-  "MemeEconomy",
-  // Programmer humor
+  "RelationshipMemes",
+  // Anime humor
+  "Animemes",
+  "anime_irl",
+  "goodanimemes",
+  // Programmer/tech humor
+  "ProgrammerHumor",
   "softwaregore",
   "linuxmemes",
+  "Sysadminhumor",
   // Games humor
   "gamingmemes",
   "pcmasterrace",
-  // Movie humor
+  "MinecraftMemes",
+  "AnarchyChess",
+  "GamePhysics",
+  "LeagueOfMemes",
+  // Movie/TV humor
   "moviescirclejerk",
+  "PrequelMemes",
+  "marvelmemes",
+  "freefolk",
+  "HolUp",
+  // History humor
+  "HistoryMemes",
+  // Sports/fitness humor
+  "hockeymemes",
+  "nbacirclejerk",
+  "GymMemes",
+  "formuladank",
+  // Career/niche humor
+  "AccountingMemes",
+  "ihavereddit",
+  // Absurdist/low-effort/format humor
+  "comedyheaven",
+  "comedynecrophilia",
+  "shitposting",
+  "antimeme",
+  "ComedyCemetery",
+  "bonehurtingjuice",
+  "DeepFriedMemes",
+  "surrealmemes",
+  "SpeedOfLobsters",
+  "4PanelCringe",
+  "ComedyHitmen",
+  // Meme-format/investment humor
+  "MemeEconomy",
 ];
 const BATCH_SIZE_PER_SUBREDDIT = 50; // meme-api.com's documented max per request
+// With 54 subreddits fetched in parallel on every refill, one slow/hanging
+// request would otherwise stall the whole batch - fetch() has no built-in
+// timeout, so this bounds each request individually.
+const FETCH_TIMEOUT_MS = 10000;
 const HISTORY_KEY = "meme-button-history";
 
 // The current batch of memes, in a fixed (shuffled once) serve order, plus
@@ -70,11 +122,17 @@ async function fetchJson(url) {
   // Bust caching (browser and any intermediate proxy/CDN) so we don't get
   // served the exact same response for an identical GET URL.
   const bustedUrl = `${url}?_=${Date.now()}-${Math.random()}`;
-  const response = await fetch(bustedUrl, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Request failed with status ${response.status}`);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(bustedUrl, { cache: "no-store", signal: controller.signal });
+    if (!response.ok) {
+      throw new Error(`Request failed with status ${response.status}`);
+    }
+    return await response.json();
+  } finally {
+    clearTimeout(timeoutId);
   }
-  return response.json();
 }
 
 async function fetchSubredditBatch(subreddit) {

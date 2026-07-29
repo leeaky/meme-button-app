@@ -38,17 +38,20 @@ blocked by CORS on the `file://` protocol).
   API and serves them one at a time from a local pool:
 
   1. On first click (and whenever the pool runs out), it fetches a batch of
-     up to 50 memes from each of 15 subreddits in parallel — general meme
-     subreddits plus programmer, games, and movie humor — via meme-api.com's
-     documented `GET /gimme/{subreddit}/{count}` endpoint (50 is its max per
-     request) — up to ~750 memes total.
+     up to 50 memes from each of 54 subreddits in parallel — general, wholesome,
+     relatable, anime, programmer/tech, games, movie/TV, history, sports,
+     and absurdist/low-effort humor — via meme-api.com's documented
+     `GET /gimme/{subreddit}/{count}` endpoint (50 is its max per request)
+     — up to ~2700 memes total. Each request is individually capped at 10s
+     (`fetch` has no built-in timeout), so one slow/hanging subreddit can't
+     stall the whole refill.
   2. The batches are combined and deduped (dropping anything that's the same
      post, or has the same title, as something already in the batch or
      already shown this session), then shuffled once.
   3. Each click serves the next meme from that shuffled pool, in sequence —
      rather than asking the API for one random meme per click, which risks
-     landing on something already shown. A batch of ~750 only needs
-     refilling roughly every 750 clicks.
+     landing on something already shown. A batch of ~2700 only needs
+     refilling roughly every 2700 clicks.
   4. On refill, subreddit "hot" listings don't change every request, so
      fetching again soon after exhausting a batch can mostly return the same
      posts. If deduping against session history would leave fewer than 20
