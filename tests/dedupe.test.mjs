@@ -73,8 +73,8 @@ test("dedupeMemes excludes anything already in seenHistory", () => {
   );
 });
 
-test(`HISTORY_LIMIT is big enough to cover a full 10-subreddit x 50 batch`, () => {
-  assert.ok(HISTORY_LIMIT >= 500, `expected HISTORY_LIMIT >= 500, got ${HISTORY_LIMIT}`);
+test(`HISTORY_LIMIT is big enough to cover a full 15-subreddit x 50 batch`, () => {
+  assert.ok(HISTORY_LIMIT >= 750, `expected HISTORY_LIMIT >= 750, got ${HISTORY_LIMIT}`);
 });
 
 test("shuffle returns a permutation of the input without mutating it", () => {

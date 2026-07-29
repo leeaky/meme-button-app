@@ -38,16 +38,17 @@ blocked by CORS on the `file://` protocol).
   API and serves them one at a time from a local pool:
 
   1. On first click (and whenever the pool runs out), it fetches a batch of
-     up to 50 memes from each of 10 subreddits in parallel, via meme-api.com's
+     up to 50 memes from each of 15 subreddits in parallel — general meme
+     subreddits plus programmer, games, and movie humor — via meme-api.com's
      documented `GET /gimme/{subreddit}/{count}` endpoint (50 is its max per
-     request) — up to ~500 memes total.
+     request) — up to ~750 memes total.
   2. The batches are combined and deduped (dropping anything that's the same
      post, or has the same title, as something already in the batch or
      already shown this session), then shuffled once.
   3. Each click serves the next meme from that shuffled pool, in sequence —
      rather than asking the API for one random meme per click, which risks
-     landing on something already shown. A batch of ~500 only needs
-     refilling roughly every 500 clicks.
+     landing on something already shown. A batch of ~750 only needs
+     refilling roughly every 750 clicks.
   4. On refill, subreddit "hot" listings don't change every request, so
      fetching again soon after exhausting a batch can mostly return the same
      posts. If deduping against session history would leave fewer than 20
@@ -74,7 +75,7 @@ blocked by CORS on the `file://` protocol).
   button is disabled and shows "Loading...". If everything fails, an error
   message is shown instead and the button re-enables so you can retry.
   Open the browser console to see how many memes actually landed in each
-  batch (`Loaded a fresh batch of N memes across 10 subreddits`) - or just
+  batch (`Loaded a fresh batch of N memes across 15 subreddits`) - or just
   glance at the bottom-right corner, which shows the same thing live as
   `xxx/bb` (memes shown from the current batch / batch number).
 

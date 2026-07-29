@@ -1,11 +1,11 @@
 // How many recently shown memes to remember, so a fresh batch doesn't
 // immediately repeat what a previous batch already showed. Deliberately
-// bigger than one full batch (10 subreddits x 50 max = 500) so the window
+// bigger than one full batch (15 subreddits x 50 max = 750) so the window
 // always has slack to hold an entire batch's worth of history - otherwise
 // the oldest entries from a just-finished batch could age out right as the
 // next batch is deduped against it, allowing a handful of repeats right at
 // the refill boundary.
-export const HISTORY_LIMIT = 600;
+export const HISTORY_LIMIT = 900;
 
 // If history-aware dedup leaves fewer memes than this, the underlying
 // subreddits just haven't refreshed since the last batch (their "hot"

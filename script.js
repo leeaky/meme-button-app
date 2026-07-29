@@ -29,6 +29,14 @@ const MEME_SUBREDDITS = [
   "comedyheaven",
   "terriblefacebookmemes",
   "MemeEconomy",
+  // Programmer humor
+  "softwaregore",
+  "linuxmemes",
+  // Games humor
+  "gamingmemes",
+  "pcmasterrace",
+  // Movie humor
+  "moviescirclejerk",
 ];
 const BATCH_SIZE_PER_SUBREDDIT = 50; // meme-api.com's documented max per request
 const HISTORY_KEY = "meme-button-history";
