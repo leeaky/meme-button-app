@@ -48,8 +48,15 @@ blocked by CORS on the `file://` protocol).
      rather than asking the API for one random meme per click, which risks
      landing on something already shown. A batch of ~500 only needs
      refilling roughly every 500 clicks.
-  4. If every subreddit fetch fails, it falls back to the API's own default
-     `/gimme` (single random meme, no dedup) as a last resort.
+  4. On refill, subreddit "hot" listings don't change every request, so
+     fetching again soon after exhausting a batch can mostly return the same
+     posts. If deduping against session history would leave fewer than 20
+     memes, that's treated as "the content hasn't refreshed yet" rather than
+     something to retry into oblivion — the new batch is deduped only
+     against itself instead, accepting repeats of older history rather than
+     collapsing down to a batch of 1.
+  5. If every subreddit fetch fails outright, it falls back to the API's own
+     default `/gimme` (single random meme, no dedup) as a last resort.
 
   Either way, a meme object looks like:
 

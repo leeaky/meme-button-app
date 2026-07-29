@@ -1,9 +1,10 @@
 import {
-  dedupeMemes,
+  buildPool,
   shuffle,
   toHistoryEntry,
   formatBatchCounter,
   HISTORY_LIMIT,
+  MIN_BATCH_SIZE,
 } from "./meme-dedupe.js";
 
 const button = document.getElementById("meme-button");
@@ -77,7 +78,7 @@ async function refillPool() {
   const results = await Promise.allSettled(MEME_SUBREDDITS.map(fetchSubredditBatch));
   const lists = results.filter((r) => r.status === "fulfilled").map((r) => r.value);
 
-  let deduped = dedupeMemes(lists, getHistory());
+  let deduped = buildPool(lists, getHistory(), MIN_BATCH_SIZE);
 
   if (deduped.length === 0) {
     // Last resort: a single random meme from the API's own default pool.

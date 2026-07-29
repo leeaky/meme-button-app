@@ -5,9 +5,11 @@ import {
   wasRecentlyShown,
   toHistoryEntry,
   dedupeMemes,
+  buildPool,
   shuffle,
   formatBatchCounter,
   HISTORY_LIMIT,
+  MIN_BATCH_SIZE,
 } from "../meme-dedupe.js";
 
 function meme(id, title, subreddit = "memes") {
@@ -113,4 +115,36 @@ test("formatBatchCounter zero-pads to 3 and 2 digits", () => {
 test("formatBatchCounter widens instead of truncating past the padding width", () => {
   assert.equal(formatBatchCounter(1234, 5), "1234/05");
   assert.equal(formatBatchCounter(500, 123), "500/123");
+});
+
+test("buildPool prefers memes not in history when there are enough of them", () => {
+  const fresh = Array.from({ length: MIN_BATCH_SIZE + 5 }, (_, i) => meme(`fresh-${i}`, `Fresh ${i}`));
+  const history = [toHistoryEntry(meme("old-1", "Old meme"))];
+
+  const result = buildPool([fresh], history, MIN_BATCH_SIZE);
+
+  assert.equal(result.length, fresh.length);
+  assert.ok(result.every((m) => m.postLink.startsWith("fresh-")));
+});
+
+test("buildPool falls back to within-batch-only dedup when the subreddits haven't refreshed", () => {
+  // The whole batch is already in history (stale subreddit listings) -
+  // history-aware dedup would leave 0, well under MIN_BATCH_SIZE.
+  const batch = Array.from({ length: 30 }, (_, i) => meme(`post-${i}`, `Meme ${i}`));
+  const history = batch.map((m) => toHistoryEntry(m));
+
+  const result = buildPool([batch], history, MIN_BATCH_SIZE);
+
+  // Falls back to a full-size batch (deduped only against itself) instead
+  // of collapsing down to almost nothing.
+  assert.equal(result.length, batch.length);
+});
+
+test("buildPool still dedupes within the batch itself in the fallback case", () => {
+  const batch = [meme("post-1", "Same joke"), meme("post-2", "same joke")]; // repost, same title
+  const history = batch.map((m) => toHistoryEntry(m)); // force the fallback path
+
+  const result = buildPool([batch], history, MIN_BATCH_SIZE);
+
+  assert.equal(result.length, 1);
 });

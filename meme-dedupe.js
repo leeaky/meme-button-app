@@ -7,6 +7,11 @@
 // the refill boundary.
 export const HISTORY_LIMIT = 600;
 
+// If history-aware dedup leaves fewer memes than this, the underlying
+// subreddits just haven't refreshed since the last batch (their "hot"
+// listings don't change every request) - not something retrying fixes.
+export const MIN_BATCH_SIZE = 20;
+
 export function normalizeTitle(str) {
   return (str || "").trim().toLowerCase();
 }
@@ -37,6 +42,19 @@ export function dedupeMemes(memeLists, seenHistory = []) {
     }
   }
   return result;
+}
+
+// Builds the pool for a fresh batch. Prefers memes not seen in `history`,
+// but if that leaves fewer than `minBatchSize` (the subreddits' content
+// hasn't refreshed since the last batch), falls back to deduping only
+// within this batch - accepting repeats of older history rather than
+// collapsing down to almost nothing.
+export function buildPool(memeLists, history, minBatchSize) {
+  const freshOnly = dedupeMemes(memeLists, history);
+  if (freshOnly.length >= minBatchSize) {
+    return freshOnly;
+  }
+  return dedupeMemes(memeLists);
 }
 
 // Fisher-Yates shuffle. Takes a randomFn (defaulting to Math.random) so
