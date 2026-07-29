@@ -10,6 +10,8 @@ step, no dependencies, no backend — just static HTML/CSS/JS.
 - Loading and error states, so a slow or failed request doesn't look broken.
 - Light/dark styling that follows your system theme.
 - Loads an initial meme automatically on page load.
+- A discreet `xxx/bb` counter in the bottom-right corner: how many memes
+  shown from the current batch, and which batch number it is.
 
 ## Run it locally
 
@@ -65,7 +67,9 @@ blocked by CORS on the `file://` protocol).
   button is disabled and shows "Loading...". If everything fails, an error
   message is shown instead and the button re-enables so you can retry.
   Open the browser console to see how many memes actually landed in each
-  batch (`Loaded a fresh batch of N memes across 10 subreddits`).
+  batch (`Loaded a fresh batch of N memes across 10 subreddits`) - or just
+  glance at the bottom-right corner, which shows the same thing live as
+  `xxx/bb` (memes shown from the current batch / batch number).
 
 ## Tests
 

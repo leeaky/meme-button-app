@@ -49,3 +49,10 @@ export function shuffle(array, randomFn = Math.random) {
   }
   return arr;
 }
+
+// "xxx/bb" - how many memes shown from the current batch, and which batch
+// number this is. Zero-padded to 3 and 2 digits respectively (numbers
+// larger than that just widen the field instead of getting truncated).
+export function formatBatchCounter(shownCount, batchNumber) {
+  return `${String(shownCount).padStart(3, "0")}/${String(batchNumber).padStart(2, "0")}`;
+}

@@ -116,6 +116,19 @@ button:disabled {
   display: inline-block;
 }
 
+#batch-counter {
+  position: fixed;
+  bottom: 0.5rem;
+  right: 0.65rem;
+  font-size: 0.7rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  opacity: 0.55;
+  user-select: none;
+  pointer-events: none;
+}
+
 @keyframes spin {
   to {
     transform: rotate(360deg);

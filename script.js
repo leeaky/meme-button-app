@@ -1,10 +1,17 @@
-import { dedupeMemes, shuffle, toHistoryEntry, HISTORY_LIMIT } from "./meme-dedupe.js";
+import {
+  dedupeMemes,
+  shuffle,
+  toHistoryEntry,
+  formatBatchCounter,
+  HISTORY_LIMIT,
+} from "./meme-dedupe.js";
 
 const button = document.getElementById("meme-button");
 const image = document.getElementById("meme-image");
 const title = document.getElementById("meme-title");
 const credit = document.getElementById("meme-credit");
 const errorMessage = document.getElementById("error-message");
+const batchCounter = document.getElementById("batch-counter");
 
 const MEME_API_BASE = "https://meme-api.com/gimme";
 // meme-api.com's default pool is just 'memes', 'dankmemes' and 'me_irl'.
@@ -31,6 +38,7 @@ const HISTORY_KEY = "meme-button-history";
 // batch is exhausted, rather than hoping a random pick avoids a collision.
 let pool = [];
 let poolIndex = 0;
+let batchNumber = 0;
 
 function getHistory() {
   try {
@@ -79,6 +87,7 @@ async function refillPool() {
 
   pool = shuffle(deduped);
   poolIndex = 0;
+  batchNumber += 1;
   console.info(
     `Loaded a fresh batch of ${pool.length} memes across ${MEME_SUBREDDITS.length} subreddits.`
   );
@@ -101,6 +110,7 @@ async function fetchMeme() {
     image.hidden = false;
     title.textContent = meme.title;
     credit.textContent = `r/${meme.subreddit} · posted by u/${meme.author}`;
+    batchCounter.textContent = formatBatchCounter(poolIndex, batchNumber);
     rememberMeme(meme);
   } catch (error) {
     console.error("Failed to fetch meme:", error);

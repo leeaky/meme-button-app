@@ -6,6 +6,7 @@ import {
   toHistoryEntry,
   dedupeMemes,
   shuffle,
+  formatBatchCounter,
   HISTORY_LIMIT,
 } from "../meme-dedupe.js";
 
@@ -102,4 +103,14 @@ test("shuffle actually reorders using the Fisher-Yates algorithm (deterministic 
   }
 
   assert.deepEqual(result, expected);
+});
+
+test("formatBatchCounter zero-pads to 3 and 2 digits", () => {
+  assert.equal(formatBatchCounter(7, 1), "007/01");
+  assert.equal(formatBatchCounter(0, 1), "000/01");
+});
+
+test("formatBatchCounter widens instead of truncating past the padding width", () => {
+  assert.equal(formatBatchCounter(1234, 5), "1234/05");
+  assert.equal(formatBatchCounter(500, 123), "500/123");
 });
